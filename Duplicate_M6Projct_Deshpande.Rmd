@@ -10,11 +10,8 @@ output: html_document
 
 <Center> 
   
-  <B> <Font size = 4, color = "green"> M6 Project Report <BR> </Font>
-     <BR>College of Professional Studies, Northeastern University 
-     <BR> ALY 6010: Probability Theory and Introductory Statistics
-     <BR>Nikhil Deshpande
-     <BR>Dr. Diana Carolina Chiluiza, PhD <BR> </B>
+  <B> <Font size = 4, color = "green"> Nikhil Deshpande <BR> </Font>
+  </B>
 
 </Center>
 
@@ -59,7 +56,6 @@ M6_Task3 <- read_excel("Datasets/M6_Task3.xlsx")
 <P><B>Introduction </B><BR>
 <P>
 
-1.Start with a little bit of history about correlation and linear regression, and the difference between correlation and determination coefficients
 <P>Correlation is first used to understand the sizes difference between offspring and parent sweat pea seeds by Francis Galton. He further extended his study by ranking the height of fathers and sons. The result of this wasn't different than his earlier study. In latter he found that children are showing minimal or no variability and fewer extremes compared to their parents. What an amazing way of looking at the daily aspects our lives! Galton called this situation "reversion" and that is how we get the correlation symbol $r$.<BR>
 <P>Karl Pearson,a friend of Galton's, coined the phrase "standard deviation" in 1893. In 1895, he released a paper in which he developed the present correlation coefficient formula and test statistic. Pearson's son, Egon, pioneered the concept of hypothesis testing in the 1920s, and his study led to the current definitions of the null and alternative hypotheses.<BR>
 <P>Thus we can conclude that correlation determines the strength of relationship between two or more variables. It is also known as bivariate statistics. This relationship would be described as strong or weak relationship. A strong relationship would be when one variable has a influence on the other variable. If I do not write an informative report, Dr. Dee would be deducting my points. Writing an informative report influence grades. This relationship would be a strong positive relationship. On the other hand, strong negative relationship would be as number of errors increases, points for the task goes down. This relationship coefficient would always be between -1 and +1. <BR>
@@ -67,36 +63,6 @@ M6_Task3 <- read_excel("Datasets/M6_Task3.xlsx")
 <center> Correlation of coefficient $r=\frac{n*((\sum X,Y)-(\sum (X) * \sum (Y)))}{\sqrt{(n* \sum (X^2)- \sum (X)^2)* (n* \sum (Y^2)- \sum (Y)^2))}}$ <BR>
 <P> Coefficient of Determination = $r^2$ 
 </center>
-
-
-2.Using your own words, inform your audience what do you understand about simple regression and multiple regression analysis. Talk about their importance and provide practical applications on the industry of your interest
-<P> In the above examples, we have seen various simple regressions. Informative report and score, number of cigarettes per day and number of years they lived, and errors to points relationship. All these examples have one respondent and another explanatory.<BR>
-The simple regression analysis studies the relationship between single dependent and single independent variable. Number of cigarettes per day and number of years they lived has single independent and single dependent variable which have the 85% influence on number of years smokers live and 15% unexplained. What if I want to study effect of alcohol as well along with  cigarettes? Rather than studying separate regression analysis on number of cigarettes and number of years they live and number of alcohol consumption in ml/day and number of years they live, we can study the multiple regression analysis. In this case, alcohol consumption ml/day and number of cigarettes per day would be independent variables and number of years they live dependent. <BR>
-Multiple correlation coefficient is denoted by $R$ and Multiple correlation determination is denoted by $R^2$. <BR>
-<P>I handled Sales and Marketing departments throughout my career and it’s very common in chalking Marketing strategies to understand the cost-efficiency and its contribution in revenue generation. If I may speak in terms of correlation, the revenue generation is dependent variable and marketing spending is independent variable. When I am doing aggressive marketing and trying every other means of marketing, I would see the increase in the sales leads and revenue generation grows ultimately. Scatter plots are used to show the correlation between two or more numeric variables.<BR>
-<P>Now that we understood correlation between two variables, there could be a scenario where we need to estimate the effect of the two or more dependent variables on the dependent variable. It’s similar to what I explained in the first section, but if you dug deep, you would understand there be various marketing activities which would affect the revenue generation. In a nutshell, there are multiple marketing activities which would help to increase the revenue. 
-Marketing activities will have influence on the Sales. Before I start spending on the marketing activities, I would be interested in understanding the influence of TTL, BTL and ATL strategies. For the simplicity, ATL (Broadcast) is traditional marketing channels such as TV advertisements, flyers distributions, and radio advertisement. BTL (niche) is weekly, monthly mails received, email marketing, and event sponsorships and TTL is online marketing or in-store promotions. 
-I would be distributing the budget depending on the effectiveness of the activity. That means, I need to predict which activity would be effective and how much I need to spend. This prediction would be achieved by Regression. 
-<center> Regression line formula $y’ = a + b_1x_1 + b_2x_2 + b_3x_3$</center><BR>
-
-
-3.Explain the application of hypothesis testing in the context of regression analysis. Again, use a practical application example.
-In one of the simple regression analysis, we understood number of cigarettes smoked per day and number of years they lived has a strong negative relationship. We calculated -0.85 coefficient correlation which supports the relationship. Suppose we want to claim that if you smoke 15 cigarettes per day for 10 years, your lifespan would be reduced by 2 years. That doesn't mean if anyone who is smoking more than 15 cigarettes per day for more than 5 years would be not be living long. This study would provide a reference to determine effect of heavy smoking on lifespan. <BR>
-This relationship testing would be possible with hypothesis where, <center> $H_0:\rho = 0$ and $H_a:\rho \ne 0$ </center> 
-<P>t test would be used to test correlation coefficient of the null hypothesis,
-<center> $t = \frac{r}{\sqrt{\frac{1-r^2}{N-2}}}$ <BR>
-where, $N$ = number of pairs of scores <BR> </center>
-4.Explain the importance of this final project to demonstrate all the analytical skills you gained during the class.
-<BR>
-<P>The final project introduced to new tools for descriptive statistics. DescTools::desc() , and summary tool::descr() and pysch::describe(). The DescTools has recently been added to perform all the descriptive statistical operations including charts under single command. On the other hand, describe() is oftenly used in psychological studied to get most frequently asked statistical values such as mean, mode, median, min, max, range, and skew. Psych::describe() provides a data frame by default so that the output would readily be used for further statistical tests. Summarytools::descr() is used to calculate statistical values of Numeric data only. These three different tools are very powerful to gain insights on the dataset at a glance. <BR>
-<P>Furthermore, understanding simple and multiple correlation and regression to calculate the predicted values would be very crucial in forecasting and decision making. Correlation and Hypothesis testing lead back to central limit theorem and calculating and level of significance. These statistical tests are critical for determining, analyzing, and predicting values to aid in decision making.<BR>
-<P>Moreover, understanding the data is crucial before planning study plan. When you know your data, preparing study plan and statistical tests would be beneficial. We always prepare study plan and statistical tests depending on the data. Also, utilizing correct tools is equally important and understanding which charts are used depending upon variable would help in data visualization.<BR>
-<P>In a nutshell, it is important to familiarize yourself with the data, use appropriate statistical tools and tests to make sound decisions. 
-
-5.Discuss of all the advantages of using R for data analysis. 
-<BR>
-<P>Unlike other programming languages, R would not require compiler and interpreter to run the code. As it is heavily used to statistical calculations, performing multiple calculations using vector makes it easy and data visualization is one of the advantages of R. Furthermore, R supports data visualization, data interface, and statistical tests make it data science language. Descriptive and inferential statistics makes R a versatile statistical analysis platform for researchers.
-
 
 <center>
     <B>
