@@ -1,0 +1,646 @@
+---
+title: "Regularization with R"
+author: "Nikhil Deshpande"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+
+
+
+```{r Library, message=FALSE, warning=FALSE}
+rm(list=ls())
+
+#Library######
+library(readr)
+library(tidyverse) 
+library(dplyr) 
+library(DT) 
+library(RColorBrewer) 
+library(rio) 
+library(dbplyr) 
+library(psych) 
+library(FSA) 
+library(knitr)
+library(RColorBrewer)
+library(plotrix)
+library(kableExtra)
+library(ISLR)
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(summarytools)
+library(hrbrthemes)
+library(cowplot)
+library(reshape2)
+library(scales)
+library(zoo)
+library(corrplot)
+library(lares)
+library(leaps)
+library(MASS)
+library(car)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(tidyr)
+library(readxl)
+library(forcats)
+library(ISLR)
+library(caret)
+library(pROC)
+library(glmnet)
+library(Metrics)
+
+
+#Dataset
+Project4_data = data.frame(College)
+
+
+```
+
+<BR>
+
+<Center>
+  <B> 
+    <Font size = 4, color = "green"> Regularization 
+  </B>  
+    </Font>
+</Center>
+
+<BR>
+
+<P>
+
+<B>Introduction </B><BR>
+<P>Regularization techniques are used to decrease model errors by fitting functions adequately on provided training sets while avoiding parameter overfitting. Simple linear regression formula is:
+<center>
+  $Y = \beta_0 + \beta_1X_1 + \beta_2X_2 +...+\beta_nX_n + \epsilon$ 
+</center><BR>
+Where $Y$ is the response variable and $\beta$ represents the coefficients for each predictor. Often the model can learn the noise, and the coefficients are unreliable, which means they can't generalize effectively to new data. Overfitting occurs when a dataset has a small number of observations, multicollinearity exists, or too many predictors are included in the model. When at all feasible, avoid overfitting a model. Regularization uses high-valued regression coefficients as a means of penalty to prevent overfitting (Gero, 2023). <BR>
+A loss function described as the residual sum of squares, or RSS, is used in the fitting process. The coefficients are chosen to reduce the loss function.<BR>
+<center>
+  \[RSS = \sum^{n}_{i=1}(\,y_i - \beta_0 - \sum^{p}_{j=1}\beta_jx_{ij})\,^2\]
+</center>
+
+<center>
+    <B>
+    <font size=4, color="A11515">Task 1: Splitting dataset into Train and Test</font>
+    </B>
+</center>
+
+```{r message=FALSE, warning=FALSE}
+#table representation of the statistical description
+describe(Project4_data)%>% 
+  kable(caption = "<center>Table 1: Statistical Description of College Dataset</center>",
+        align = "c")%>%
+  kable_styling(bootstrap_options = c("hover",
+                                        "bordered"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+  footnote(general = "US Colleges from the 1995 issue of US News and World Report.\n",
+           general_title = "Data Source:",
+           symbol = c("Categorical Variable"))
+
+#Splitting dataset into Train and Test######
+set.seed(130)
+
+traintestind <- createDataPartition(Project4_data$Private, p=0.70, list = FALSE)
+
+traindata <- Project4_data[traintestind,] #assigning 70% of data to train
+testdata <- Project4_data[-traintestind,] #assigning remaining 30% of data to test
+
+head(traindata) %>%
+  kable(caption = "<center>Table 2: Head of Train dataset of College Dataset</center>",
+        align = "c")%>%
+  kable_styling(bootstrap_options = c("hover",
+                                        "bordered"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+  footnote(general = "US Colleges from the 1995 issue of US News and World Report.\n",
+           general_title = "Data Source:")
+
+head(testdata)%>%
+  kable(caption = "<center>Table 3: Head of Test dataset of College Dataset</center>",
+        align = "c")%>%
+  kable_styling(bootstrap_options = c("hover",
+                                        "bordered"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+  footnote(general = "US Colleges from the 1995 issue of US News and World Report.\n",
+           general_title = "Data Source:")
+  
+
+#Converting dataframe into matrix to make glmnet compatible
+#model.matrix() is used as Private is Categorical variable
+traindata_x <- model.matrix(Grad.Rate ~., traindata)[,-1] 
+testdata_x <- model.matrix(Grad.Rate ~., testdata)[,-1]
+
+traindata_y = traindata$Grad.Rate
+testdata_y = testdata$Grad.Rate
+
+```
+
+<center>
+    <B>
+    <font size=4, color="A11515">Observation:</font>
+    </B>
+</center>
+<BR><P>In this task, I have loaded the College dataset and used describe() for descriptive statistics of the dataset. This dataset have 18 variables and Private is categorical variable whereas others are continues and discrete variables. I would be using this dataset to run the Regularization regressions, <B>Lasso L1 and Ridge L2 </B>but before that I split the dataset into two datasets. Train dataset have 70% of the College and Test have remaining 30% of the College dataset. Train and Test datasets' head observations are displayed using kable(). <BR>
+
+
+<center>
+    <B>
+    <font size=4, color="A11515">Ridge Regression:</font>
+    </B>
+</center>
+<BR><P>L2 regularization is used in the Ridge regression technique, which applies a penalty proportional to the square of the size of the coefficients. The coefficients in Ridge regression will approach 0 but will never equal zero.
+<center>Regularization at the L2 level: 
+<BR>Adds a penalty equal to the square of the coefficient magnitude. <BR> The same factor reduces the value of each coefficient (none are eliminated) (Gero, 2023).
+</center>
+
+```{r message=FALSE, warning=FALSE}
+#Ridge Regression#####
+
+#Best lambda value
+
+set.seed(130)
+crssval.ridge = cv.glmnet(traindata_x, traindata_y, nfolds = 10, alpha = 0) #Alpha 0 = Ridge, 1 = Lasso
+
+plot(crssval.ridge)
+
+
+
+#Finding optimal Lambda value
+
+minlamb.ridge = log(crssval.ridge$lambda.min) #minimum Lambda value
+selamb.ridge = log(crssval.ridge$lambda.1se) #1Standard Error Lambda value
+
+loglamb = rbind(minlamb.ridge,selamb.ridge)
+col_n <- c("Lambda log Value")   
+row_n <- c("Lambda Min log value","Lambda 1 Standard Error log value")
+  dimnames(loglamb) <- list(row_n,col_n)
+  
+kable(loglamb,
+  caption = "<center>Lambda log values of Ridge Regression</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table a, Sub task 1",
+           general_title = "Task 1: ")
+
+##Ridge Regression Model on Lambda Min######
+
+modl.miniridge = glmnet(traindata_x, traindata_y, alpha = 0, lambda = crssval.ridge$lambda.min) #Alpha 0 = Ridge, 1 = Lasso
+#print(modl.miniridge)
+Dflaridmi = as.numeric(modl.miniridge$df[1])
+Dfratlaridmi = as.numeric(modl.miniridge$dev.ratio[1] * 100)
+Dflaridmivl = as.numeric(modl.miniridge$lambda[1])
+
+minirdg = cbind(Dflaridmi,
+                round(Dfratlaridmi,3),
+                round(Dflaridmivl,3))
+
+col_ridmin <- c("Degree of Freedom", "% Dev", "Lambda")   
+row_ridmin <- c("Min Ridge Regression")
+  dimnames(minirdg) <- list(row_ridmin,col_ridmin)
+  
+kable(minirdg,
+  caption = "<center>Ridge Min Regression on Train data</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table b, Sub task 1",
+           general_title = "Task 1: ")
+
+
+###Regression Coefficient Lambda Min######
+
+modl.miniridge_coef = as.data.frame(as.matrix(coef(modl.miniridge)))
+
+kable(modl.miniridge_coef,
+      caption = "<center>Min Model Coefficient</center>",
+      align = "c",
+      col.names = "Coefficient") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Ridge Regression Coefficient Min",
+           general_title = "Task 1: ")
+
+##Ridge Regression Model by Lambda 1SE######
+
+modl.seridge = glmnet(traindata_x, traindata_y, alpha = 0, lambda = crssval.ridge$lambda.1se) #alpha 1 is for Lasso (L2)
+#print(modl.seridge)
+Dflaridse = as.numeric(modl.seridge$df[1])
+Dfratlaridse = as.numeric(modl.seridge$dev.ratio[1] * 100)
+Dflaridsevl = as.numeric(modl.seridge$lambda[1])
+
+se1rdg = cbind(Dflaridse,
+                round(Dfratlaridse,3),
+                round(Dflaridsevl,3))
+
+col_ridse <- c("Degree of Freedom", "% Dev", "Lambda")   
+row_ridse <- c("Lambda 1SE Ridge Regression")
+  dimnames(se1rdg) <- list(row_ridse,col_ridse)
+  
+kable(se1rdg,
+  caption = "<center>Ridge 1SE Regression on Train data</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table c, Sub task 1",
+           general_title = "Task 1: ")
+
+
+##Regression Coefficient Lambda 1SE######
+modl.seridge_coef = as.data.frame(as.matrix(coef(modl.seridge)))
+
+kable(modl.seridge_coef,
+      caption = "<center>1SE Model Coefficient</center>",
+      align = "c",
+      col.names = "Coefficient") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Ridge Regression Coefficient 1SE",
+           general_title = "Task 1: ")
+
+##Regression Coefficient with no Regularization######
+noreg.rdg = lm(Grad.Rate ~ ., data = traindata)
+#coef(noreg.rdg)
+noreg.rdg_coef = as.data.frame(as.matrix(coef(noreg.rdg)))
+
+kable(noreg.rdg_coef,
+      caption = "<center>No Regularization Model Coefficient</center>",
+      align = "c",
+      col.names = "Coefficient") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Regression Coefficient, No Regularization",
+           general_title = "Task 1: ")
+
+##view RMSE on Full data#######
+pred.noreg.rdg = predict(noreg.rdg, new = testdata)
+Full.rmse.rdg = rmse(testdata$Grad.Rate, pred.noreg.rdg)
+
+#print(Full.rmse.rdg)
+
+###Prediction Test dataset#######
+testridge_pred = predict(modl.seridge, newx = testdata_x)
+
+test.ridgermse = rmse(testdata_y, testridge_pred)
+
+
+###Prediction Train dataset######
+
+trainridge_pred = predict(modl.seridge, newx= traindata_x)
+
+train.ridgermse = rmse(traindata_y, trainridge_pred) #root mean square error
+
+##Comparing RMSE values#######
+#print(Full.rmse.rdg) 
+#print(train.ridgermse)
+#print(test.ridgermse)
+
+CompRMSE = cbind(round(Full.rmse.rdg,3),
+                round(train.ridgermse,3),
+                round(test.ridgermse,3))
+
+col_comprmse <- c("RMSE value Full dataset", "RMSE value Train dataset", "RMSE value Test dataset")   
+row_comprmse <- c("RMSE values")
+  dimnames(CompRMSE) <- list(row_comprmse,col_comprmse)
+
+kable(CompRMSE,
+  caption = "<center>Comparison of RMSE values of Ridge Min, 1SE, and No Regression on Train, Test, and Full data</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table d, Sub task 5 & 6",
+           general_title = "Task 1: ")
+
+```
+<center>
+    <B>
+    <font size=4, color="A11515">Observation:</font>
+    </B>
+</center><BR>
+<P>In this project, I would be using Graduate rate as dependent variable and independent variables which are affecting the graduation rate.<BR>
+Ridge Regression have been tested on Train and Test dataset to determine the performance of the model and identify whether there is an overfit or not. Before we proceed with the model, I would like to know the log value of Lambda. Lambda min and 1SE values are 1.21 and 3.25 respectively.
+<BR>The significance of the lambda min value is that it is the value of the regularization parameter that produces the smallest cross-validated mean squared error (Hastie, 2001). Which means it is the value of lambda that results in the best prediction performance, as measured by the mean squared error.<BR>
+The significance of the 1SE value is that it is the value of the regularization parameter that produces a prediction performance that is within one standard error of the prediction performance at the lambda min value (Hastie, 2001). Which means it is the value of lambda that results in a prediction performance that is almost as good as the best prediction performance, but with less overfitting to the training data.<BR>
+Both the lambda min and 1SE values are useful in determining the appropriate level of regularization in Ridge Regression, as they help to balance the trade-off between overfitting and underfitting.<BR>
+<P>Using the Cross-Validation, I would be extracting log value of Lambda and the same could be plotted to understand the number of variables influencing the Lambda minimum and 1 Standard Error value. In the plot, the Cross-Validation values are represented with dotted vertical lines. The minimum and 1 Standard Error values are 1.21 and 3.25 respectively. The number of variables it has counted from College dataset is 17 means all other variables effecting Graduation rate. The same is represented in Task 1: Table a.<BR>
+<P>Task 1: Table b represents the Minimum Ridge values. Degree of Freedom, Deviation Ratio, and Lambda values are captured from Train dataset using the glmnet(). Furthermore, Task 1 table shows the coefficient values of the glmnet() on Train dataset. Same procedures are repeated for 1SE and No Regularization. 
+<BR>The Root Mean Squared Error (RMSE) value is a measure of the difference between the predicted values and the actual values. It is a commonly used evaluation metric for regression models. The RMSE value represents the average difference between the predicted and actual values, and it is calculated by taking the square root of the mean of the squared differences between the predicted and actual values. A lower RMSE value indicates that the model has a better fit to the data and is therefore making more accurate predictions (Gero, 2023).<BR>
+The last table, Task1: Table D shows the RMSE value comparison and shows three different RMSE values. RMSE value Full dataset, Train dataset, and Test dataset. As the difference between these three values is negligible, the model is not overfitting.<BR>
+<P>In the all three coefficient tables, the PrivateYES and Perc.alumni values are influencing the graduation rate significantly followed by Top10perc, Top25perc, Student to Faculty ratio(except Lambda 1SE model), and Phd.<BR>
+To summarize, Graduate rate is influenced by type of university(PrivateYES), Percentage alumni donate, Percentage of new students from top 10% of H.S. class, Percentage of new students from top 25% of H.S. class, and Percentage of Faculty with Phd's. 
+
+
+<center>
+    <B>
+    <font size=4, color="A11515">Lasso:</font>
+    </B>
+</center>
+<BR><P>The Least Absolute Shrinkage and Selection Operator approach, sometimes known as Lasso, is a popular regularization implementation method.<BR>
+<center>Regularization at the L1 level:
+<BR>Adds a penalty proportional to the absolute value of the magnitude of the coefficients and restricts their size.  <BR>
+L1 has the ability to decrease coefficients to zero and hence delete the variable.
+</center>
+
+```{r message=FALSE, warning=FALSE}
+#LASSO######
+
+#Best lambda value
+
+set.seed(130)
+crssval.lasso = cv.glmnet(traindata_x, traindata_y, nfolds = 10, alpha = 1)
+plot(crssval.lasso)
+
+#Finding optimal Lambda value
+
+minlamb.lasso = log(crssval.lasso$lambda.min) #minimum Lambda value
+se1lamb.lasso = log(crssval.lasso$lambda.1se) #1Standard Error Lambda value
+
+
+loglamblasso = rbind(minlamb.lasso,se1lamb.lasso)
+col_lasso <- c("Lambda log Value: Lasso")   
+row_lasso <- c("Lambda Min log value","Lambda 1 Standard Error log value")
+  dimnames(loglamblasso) <- list(row_lasso,col_lasso)
+  
+kable(round(loglamblasso,3),
+  caption = "<center>Lambda log values of Lasso Regression</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table a, Sub task 1",
+           general_title = "Task 2: ")
+
+#Lasso Regression Model on Lambda Min
+
+modl.minilasso = glmnet(traindata_x, traindata_y, alpha = 1, lambda = crssval.lasso$lambda.min)
+#print(modl.minilasso)
+
+Dflamlassomi = as.numeric(modl.minilasso$df[1])
+Dfratlassomi = as.numeric(modl.minilasso$dev.ratio[1] * 100)
+Dflamlassomivl = as.numeric(modl.minilasso$lambda[1])
+
+lassominrdg = cbind(Dflamlassomi,
+                round(Dfratlassomi,2),
+                round(Dflamlassomivl,3))
+
+col_lassomin <- c("Degree of Freedom", "% Dev", "Lambda")   
+row_lassomin <- c("Lambda Min Ridge Regression")
+  dimnames(lassominrdg) <- list(row_ridmin,col_ridmin)
+
+kable(lassominrdg,
+  caption = "<center>Lasso Min Regression on Train data</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table b, Sub task 1",
+           general_title = "Task 2: ")
+
+#Regression Coefficient Lambda Min
+
+lammin.lasso_coef = as.data.frame(as.matrix(coef(modl.minilasso)))
+
+kable(lammin.lasso_coef,
+      caption = "<center>Lasso Lamba Min Regularization Model Coefficient</center>",
+      align = "c",
+      col.names = "Coefficient") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Lasso Regression Coefficient, Lamba Min",
+           general_title = "Task 2: ")
+
+
+#lasso Regression Model by Lambda 1SE
+
+modl.selasso = glmnet(traindata_x, traindata_y, alpha = 1, lambda = crssval.lasso$lambda.1se) #alpha 1 is for Lasso (L2)
+#print(modl.selasso)
+Dflamlassose1 = as.numeric(modl.selasso$df[1])
+Dfratlassose1 = as.numeric(modl.selasso$dev.ratio[1] * 100)
+Dflamlassose1vl = as.numeric(modl.selasso$lambda[1])
+
+lassose1rdg = cbind(Dflamlassose1,
+                round(Dfratlassose1,2),
+                round(Dflamlassose1vl,3))
+
+col_lassose1 <- c("Degree of Freedom", "% Dev", "Lambda")   
+row_lassose1 <- c("Lambda Min Ridge Regression")
+  dimnames(lassose1rdg) <- list(row_lassose1,col_lassose1)
+
+kable(lassose1rdg,
+  caption = "<center>Lasso 1SE Regression on Train data</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table c, Sub task 2",
+           general_title = "Task 2: ")
+
+
+#Regression Coefficient Lambda 1SE
+
+
+lam1se.lasso_coef = as.data.frame(as.matrix(coef(modl.selasso)))
+
+kable(lam1se.lasso_coef,
+      caption = "<center>Lasso Lamba 1SE Regularization Model Coefficient</center>",
+      align = "c",
+      col.names = "Coefficient") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Lasso Regression Coefficient, Lamba 1SE",
+           general_title = "Task 2: ")
+
+
+#Regression Coefficient with no Regularization
+noreg.lasso = lm(Grad.Rate ~ ., data = traindata)
+
+noreg.lasso_coef = as.data.frame(as.matrix(coef(noreg.lasso)))
+
+kable(noreg.lasso_coef,
+      caption = "<center>No Regularization Model Coefficient</center>",
+      align = "c",
+      col.names = "Coefficient") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Regression Coefficient, No Regularization",
+           general_title = "Task 2: ")
+
+#view RMSE on Full data
+pred.noreg = predict(noreg.lasso, new = testdata)
+Full.rmse = rmse(testdata$Grad.Rate, pred.noreg)
+#print(Full.rmse)
+
+#Prediction Test dataset
+testlasso_pred = predict(modl.selasso, newx = testdata_x)
+
+test.lassormse = rmse(testdata_y, testlasso_pred)
+
+
+#Prediction Train dataset
+
+trainlasso_pred = predict(modl.selasso, newx= traindata_x)
+
+train.lassormse = rmse(traindata_y, trainlasso_pred) #root mean square error
+
+#Comparing RMSE values
+#print(Full.rmse) 
+#print(train.lassormse)
+#print(test.lassormse)
+
+CompRMSE_lasso = cbind(round(Full.rmse,3),
+                round(train.lassormse,3),
+                round(test.lassormse,3))
+
+col_comprmse_lasso <- c("RMSE value Full dataset", "RMSE value Train dataset", "RMSE value Test dataset")   
+row_comprmse_lasso <- c("RMSE values")
+  dimnames(CompRMSE_lasso) <- list(row_comprmse_lasso,col_comprmse_lasso)
+
+kable(CompRMSE_lasso,
+  caption = "<center>Comparison of RMSE values of Ridge Min, 1SE, and No Regression on Train, Test, and Full data</center>",
+       align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Table d, Sub task 5 & 6",
+           general_title = "Task 2: ")
+
+
+
+```
+<center>
+    <B>
+    <font size=4, color="A11515">Observation:</font>
+    </B>
+</center>
+<BR>
+<P>Continuing the regularization, Lasso regression is used on Train and Test dataset to understand how Graduation rare is influenced by other variables. 
+But before we proceed, we need to understand the Lambda Min and 1SE using Cross Validation method.<BR>
+In Lasso Regression, the regularization term is a penalty for having large coefficients for the features, and the value of the penalty is controlled by the lambda parameter. The goal is to find a balance between fitting the data well and having a simple model with small coefficients for the features(Gero, 2023).<BR>
+Lambda min is the value of the lambda parameter that gives the minimum cross-validated mean square error (MSE) for the model. This is the value that would be chosen if the goal were to minimize the MSE (Hastie, 2001).<BR>
+1SE (one standard error) is a commonly used measure of how much a model's MSE would change if it were fit to a different dataset. The 1SE value of lambda is the value that gives a model whose MSE is within one standard deviation of the MSE of the model with lambda min (Hastie, 2001).<BR>
+The significance of Lambda min and 1SE values in Lasso Regression is that they can help to determine the best trade-off between model fit and complexity. Choosing the lambda value that gives the lowest MSE may result in overfitting, while choosing a higher lambda value may result in underfitting. The 1SE value provides a measure of the uncertainty in the MSE and can be used to choose a more robust model that is less sensitive to the choice of data (Hastie, 2001; Gero, 2023).<BR>
+<P>Using the Cross-Validation, I would be extracting log value of Lambda and the same could be plotted to understand the number of variables influencing the Lambda minimum and 1 Standard Error value. In the plot, the Cross-Validation values are represented with dotted vertical lines. The minimum and 1 Standard Error values are -0.67 and 0.63 respectively. The number of variables it has counted from College dataset is between 7 and 11 means these variables are effecting Graduation rate. The same is represented in Task 2: Table a.
+Task 2: Table b represents the Minimum Lasso values. Degree of Freedom, Deviation Ratio, and Lambda values are captured from Train dataset using the glmnet(). Furthermore, Task 2 table shows the coefficient values of the glmnet() on Train dataset. Same procedures are repeated for 1SE and No Regularization.
+The Root Mean Squared Error (RMSE) value is a measure of the difference between the predicted values and the actual values. It is a commonly used evaluation metric for regression models. The RMSE value represents the average difference between the predicted and actual values, and it is calculated by taking the square root of the mean of the squared differences between the predicted and actual values. A lower RMSE value indicates that the model has a better fit to the data and is therefore making more accurate predictions (Gero, 2023).
+The last table, Task2: Table D shows the RMSE value comparison and shows three different RMSE values. RMSE value Full dataset, Train dataset, and Test dataset. As the difference between these three values is negligible, the model is not overfitting.<BR>
+Furthermore, in the all three coefficient tables, Perc.alumni values are influencing the graduation rate significantly followed by Top25perc. The noticeable difference between Ridge and Lasso is Lasso eliminate few variables and captures most influencing variables. This elimination would be different for Lambda Min and Lamnda 1SE. In the Task 2: Lambda Min Coefficient, Accept, Enroll, Fulltime Undergraduates, Books, Phd, Terminal, and Expend variables are eliminiated. However, in Lambda 1SE Coefficient table, in addition to min coefficient elimination, Private(Yes) and Student to Faculty ratio variables are eliminated.<BR>
+Surprisingly, the Private(Yes) variables have most impact on Graduation Rate in Ridge Regression but in Lasso for 1SE Lamnda value, it is eliminated. 
+To summarize, Graduate rate is influenced by Percentage alumni donate in all three regression models and except in 1SE Lambda, the Private(YES) is influencing variable. In Lambda 1SE value total 6 variables are considered influencing Graduation rate and in Lambda Min value 9 variables. <BR>
+<P>The Task 2: Table d shows the RMSE values of three models and the difference between them is negligible, so we can conclude that Lasso models are not overfitting. 
+
+
+<center>
+    <B>
+    <font size=4, color="A11515">Task 12 & 13:</font>
+    </B>
+</center>
+
+```{r message=FALSE, warning=FALSE, warning=FALSE}
+
+#Optimal model using step()
+
+optmod = step(lm(Grad.Rate ~ ., data = Project4_data), direction = "both") #finding optimal model
+#summary(optmod) 
+
+optimodel = lm(formula = Grad.Rate ~ Private + Apps + Top25perc + P.Undergrad + 
+     Outstate + Room.Board + Personal + PhD + Terminal + perc.alumni +      Expend, data = Project4_data) #optimal model
+
+optimodel_coef = data.frame((coef(optimodel))) #coefficient of model 
+
+kable(optimodel_coef,
+      caption = "<center> Table 13.1 Stepwise Selection Fit Model Coefficient</center>",
+      align = "c",
+      col.names = "Coefficient") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Model:Grad.Rate ~ Private + Apps + Top25perc + P.Undergrad + Outstate + Room.Board + Personal + PhD + Terminal + perc.alumni +      Expend",
+           general_title = "Task 13: ")
+
+pred.optimodel = predict(optimodel, new = Project4_data) #predict model
+pred.optimodel.rmse = rmse(Project4_data$Grad.Rate, pred.optimodel) #RMSE value on actual and predict 
+
+kable(pred.optimodel.rmse,
+  caption = "<center>Table 13.2 RMSE value</center>",
+      align = "c",
+      col.names = "RMSE value") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Model:Grad.Rate ~ Private + Apps + Top25perc + P.Undergrad + Outstate + Room.Board + Personal + PhD + Terminal + perc.alumni +      Expend",
+           general_title = "Task 13: ")
+  
+
+```
+
+
+
+<center>
+    <B>
+    <font size=4, color="A11515">Observation:</font>
+    </B>
+</center>
+<BR>
+<P>In this task, I am using stepwise selection function in both directions to find best model that will be influencing Graduation rate and compare it's RMSE with Ridge and Lasso.<BR>
+After running step(lm()), I can compare 7 models and selected lowest AIC model. The lowest AIC provides the best fit model compared to others. In the table 13.1, Coefficient of Stepwise Selection Fit model shows the Private(YES), Percentage of new students from top 25% of H.S. class, Percentage of Faculty Phd's, and Percentage of Alumni who donate influence the Graduation rate. <BR>
+The Table 13.2 shows the RMSE of the model and compared to Lasso and Ridge, I can conclude that the model is not overfit as the difference between RMSE is negligible. 
+
+<center>
+    <B>
+    <font size=4, color="A11515">Reference:</font>
+    </B>
+</center><BR>
+Bluman, A. (2014). <I>Elementary statistics: A step by step approach</I>. McGraw-Hill Education.<BR>
+Gero, E. (2023). <I>ALY6015_Module3_Logistic_Regression[Lecture recording]</I>. Canvas@Northeastern University.https://canvas.northeastern.edu/<BR>
+Hastie, T., Tibshirani, R., Friedman, J. H. (2001).<I>The elements of statistical learning: data mining, inference, and prediction: with 200 full-color illustrations</I>. Springer.<BR>
+Kabacoff, R. (2015). <I>R in Action</I>. Manning Publications Co. <BR>
+
