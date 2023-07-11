@@ -1,0 +1,559 @@
+---
+title: "GLM and Logistic Regression "
+author: "Nikhil Deshpande"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 80
+---
+
+```{r Library, echo=FALSE, message=FALSE, warning=FALSE}
+rm(list=ls())
+
+#Library######
+library(readr)
+library(tidyverse) 
+library(dplyr) 
+library(DT) 
+library(RColorBrewer) 
+library(rio) 
+library(dbplyr) 
+library(psych) 
+library(FSA) 
+library(knitr)
+library(RColorBrewer)
+library(plotrix)
+library(kableExtra)
+library(ISLR)
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(summarytools)
+library(hrbrthemes)
+library(cowplot)
+library(reshape2)
+library(scales)
+library(zoo)
+library(corrplot)
+library(lares)
+library(leaps)
+library(MASS)
+library(car)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(tidyr)
+library(readxl)
+library(forcats)
+library(ISLR)
+library(caret)
+library(pROC)
+
+
+
+#Dataset
+Project3_data = data.frame(College)
+
+```
+
+<BR>
+
+<Center>
+  <B> 
+    <Font size = 4, color = "green"> GLM and Logistic Regression 
+  </B>  
+    </Font>
+</Center>
+
+<BR>
+
+<P>
+
+<B>Introduction </B><BR>
+
+<P> A family of regression models known as generalized linear models enables us to adapt the linear regression methodology to a wide range of dependent variables.   A generalized linear model does not require a continuous or regularly distributed dependent variable (Gero, 2023). <BR>
+<P>
+<center>
+  <B>Three components of a GLM:</B>
+</center>
+
+<B>Random component</B> – probability distribution of the response variable <BR>
+<B>Systematic component</B> - specifies the explanatory variables (X1, X2, ... Xk) in the model, more specifically their linear combination in creating the so called linear predictor.<BR>
+<B>Link function</B> - specifies the link between random and systematic components. <BR>
+<P>
+<center><B>Model Families:</B></center> <BR>
+
+<B>Gaussian family</B> – continuous decimal data with normal distribution like weight, length.<BR>
+
+<B>Binomial</B> – binary data like 0 and 1, or proportion like survival number vs death number, positive frequency vs negative frequency <BR>
+
+<B>Poisson</B> – used for counts or frequencies <BR>
+
+<B>Gamma</B> – used for time data like the time or duration of the occurrence of the event <BR>
+<P>In contrast to linear regression, which has a limited number of alternative values, the outcome of <u>logistic regression</u> is categorical and has a single possible value, such as "yes" or "no," or if someone has brown, blue, or green eyes. Classification is the prediction of a label or categorical variable. 
+
+<center>
+  <B> 
+    <font size=4, color="A11515">Task 1: College dataset EDA </font>
+  </B>
+</center>
+
+```{r Task 1, message=FALSE, warning=FALSE}
+#EDA######
+Task1data = Project3_data
+
+describe(Task1data)%>% #table representation of the statistical description
+  kable(caption = "<center>Table 1: Statistical Description of College Dataset</center>",
+        align = "c")%>%
+  kable_styling(bootstrap_options = c("hover",
+                                        "bordered"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+  footnote(general = "US Colleges from the 1995 issue of US News and World Report.\n",
+           general_title = "Data Source:",
+           symbol = c("Categorical Variable"))
+
+
+#DescTools::Desc(Task1data$Private)
+
+##Statistical Charts#####
+
+ggplot(Task1data, aes(y=F.Undergrad, x=Private)) + 
+    geom_bar(stat = "identity", position = "dodge")+
+  ggtitle("Full-time Undergrad Students in Universities") +
+  ylab("Number of Undergrads")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+
+
+Task1data = Task1data %>%
+  mutate(Acceptrate = c((Accept/Apps))) #add acceptance rate column
+
+#private univ subset
+Privaterate = subset(Task1data, Private == "Yes", 
+         select=c(Acceptrate))
+Privaterate = sum(Privaterate$Acceptrate) / length(Privaterate$Acceptrate)
+
+#public Univ subset
+Publicrate = subset(Task1data, Private == "No", 
+         select=c(Acceptrate))
+Publicrate = sum(Publicrate$Acceptrate) / length(Publicrate$Acceptrate)
+
+#data combining
+acceptrate = data.frame(Private = Privaterate,
+                        Public = Publicrate)
+
+#avg acceptance rate table representation
+kable(round(acceptrate,3)*100,
+      caption = "<center>Table 2: Private vs Public Acceptance rate </center>",
+      align = "c",
+      col.names = c("Private University Acceptance Rate %",
+                    "Public University Acceptance Rate %")) %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "US Colleges from the 1995 issue of US News and World Report.\n",
+           general_title = "Data Source:")
+
+#Public vs Private Out-of-State Tuition
+cdplot(Private ~ Outstate, data=Task1data, ylevels = 2:1,
+       main = "Out-of-State Tuition of Private, Public",
+       xlab = "Tuition Fee (USD)")
+
+
+#Finding universities per student expenditure above country mean
+Abovemeanexp = Task1data[which(Task1data$Expend > mean(Task1data$Expend) ),]
+
+meancount <- function(y, uplim = max(Abovemeanexp$Expend) * 1.15) {
+  return(data.frame(
+    y = 0.95 * uplim,
+    label = paste(
+      "Count =", length(y), "\n"
+    )
+  ))
+}
+ggplot(Abovemeanexp, aes(y=Expend, x=Private)) + 
+    geom_bar(position="dodge", stat="identity")+
+  ggtitle("Expenditure per Student  greater than country mean") +
+  ylab("Expenditure in USD")+
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.caption = element_text(size = 7))+
+  #scale_y_continuous(labels = unit_format(unit = "M", scale = 1e-6))+
+  labs(caption = "Country Mean per student expenditure, $9660") +
+  stat_summary( 
+               fun.data = meancount, 
+               geom = "text", hjust = 0.5, vjust = 0.9, size = 2)
+
+#Highest expenditure per student 
+Mostperstudentexp = Abovemeanexp %>%
+  filter(Abovemeanexp$Expend == max(Abovemeanexp$Expend))
+
+  kable(Mostperstudentexp,
+        caption = "<center>Table 3: Highest per student expenditure(USD) university </center>",
+        align = "c")%>%
+  kable_styling(bootstrap_options = c("hover",
+                                        "bordered"),
+                font_size = 11) %>%
+  scroll_box(width = "100%", height = "100%") %>%
+  footnote(general = "US Colleges from the 1995 issue of US News and World Report.\n",
+           general_title = "Data Source:")
+
+
+#Avg Student to Faculty Ratio in Private Univ
+PrivateSFR = subset(Task1data, Private == "Yes", 
+         select=c(S.F.Ratio))
+PrivateSFR = sum(PrivateSFR$S.F.Ratio) / length(PrivateSFR$S.F.Ratio)
+
+#Avg Student to Faculty Ratio in Public Univ
+PublicSFR = subset(Task1data, Private == "No", 
+         select=c(S.F.Ratio))
+PublicSFR = sum(PublicSFR$S.F.Ratio) / length(PublicSFR$S.F.Ratio)
+
+#Data merging
+FinSFR = data.frame(Public_S.F.R = PublicSFR,
+                    Private_S.F.R = PrivateSFR)
+
+kable(round(FinSFR,2),
+      caption = "<center>Table 4: Private vs Public Student:Faculty </center>",
+      align = "c",
+      col.names = c("Private University Student to Faculty Ratio",
+                    "Public University Student to Faculty Ratio")) %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "US Colleges from the 1995 issue of US News and World Report.",
+           general_title = "Data Source: ")
+
+
+testfit = glm(Private ~ S.F.Ratio + Grad.Rate + Outstate, data = Task1data, family = binomial)
+
+testfit2 = glm(Private ~ Top10perc + F.Undergrad + PhD, data = Task1data, family = binomial)
+
+#summary(testfit)
+#summary(testfit2)
+
+anov = anova(testfit, testfit2)
+anov %>%
+  kable(caption = "<center>Table 5: Best fit Model</center>")%>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "100%") %>%
+   footnote(general = "Test 1: Private ~ S.F.Ratio + Grad.Rate + Outstate and \n Test 2: Private ~ Top10perc + F.Undergrad + PhD\n",
+           general_title = "Test fit: ")
+
+
+#tab_model()
+
+AIC(testfit, testfit2)%>%
+  kable(caption = "<center>Table 6: AIC Best fit Model</center>",
+        align = "c")%>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "50%") %>%
+   footnote(general = "Test 1: Private ~ S.F.Ratio + Grad.Rate + Outstate and \n Test 2: Private ~ Top10perc + F.Undergrad + PhD\n",
+           general_title = "Test fit: ")
+
+
+
+
+
+
+```
+
+<center>
+  <B> <font size=4, color="A11515">Observation:</font> 
+  </B>
+</center><BR>
+<P>The College dataset, sourced from the 1995 issue of US News and World Report, contains information on various attributes of American colleges and universities. The dataset includes variables such as the school's name, private/public status, enrollment size, percent of students from Top 10 and 25 of high school class, acceptance rate, and expenditures per student. The dataset can be used to explore relationships between different attributes, such as the relationship between a school's expenditure per student and percentage of students from top 10 or 25 high school class. Additionally, statistical techniques such as regression analysis can be used to identify the most significant predictors of a school's overall success, as determined by the US News and World Report. This dataset can be used to understand the trends of colleges in 1995 and can also be used to compare with recent data. Furthermore, it can help to understand how the factors affecting the success of colleges and universities have changed over time. <BR>
+<P>Table 1 provides an overview of the dataset and descriptive statistics of variables. One of the variables Private is categorical variables as it have Yes/No values. In the table 1, Private is denoted by $*$ to confirm the categorical type. Rest of the variables are discrete and continuous variables.<BR>
+Bar chart Full time students in universities shows the undergraduate students in US universities who are enrolled as full time students. Bar chart shows Public universities have most full time undergraduate students enrolled in 1995. However, the acceptance rate of Private universities is greater than public universities. Overall, Private universities have acceptance rate of 75.5% and Public universities have 72.7% acceptance rate. <BR>
+Furthermore, the tuition fee for out-of-state students is higher in Private Universities as compared to Public Universities. Almost 99% of Public Universities have tuition fee less than USD15,000 and on the other hand, almost 20% of Private Universities have tuition fee less than USD15,000. Another contributing factor in success of the universities is the instructional expenditure per student. Instructional expenditure per student refers to the amount of money spent by a college or university on instruction-related activities for each student enrolled. This typically includes expenses such as faculty salaries, instructional materials, and classroom technology. It is calculated by dividing the total amount spent on instruction by the number of students enrolled. This metric is often used as an indicator of a school's investment in its educational offerings and can be a useful tool for comparing the resources available at different institutions. It is also used to study the relationship between the expenditure and the academic outcome. The country mean of expenditure per student across universities is USD9660. 226 Private and 36 Public universities' expenditure per student is higher than country mean. And John Hopkins University have most instructional expenditure of USD56233.<BR>
+However, another interesting analysis out of the data is student:faculty ratio. Surprisingly the Public Universities have almost 13:1 ratio and Private Universities have 17:1 ratio.<BR>
+<P>After a thoughtful consideration, I have decided to consider Student:Faculty ratio, Outstate, Grad Rate, percentage of students from Top 10 high school, and Full time undergraduate to measure the success of the universities. Model 1 measures the correlation of Private to Student:Faculty ratio, Outstate, Grad Rate and Model 2 percentage of students from Top 10 high school, and Full time undergraduate, Model 2 is best fit. This model is selected based on preliminary analysis. I would be modeling different regression models in the next tasks.<BR> 
+
+<center>
+  <B> <font size=4, color="A11515">Task 2:</font>
+  </B>
+</center>
+
+```{r Task 2, message=FALSE, warning=FALSE}
+#Train and Test#######
+
+set.seed(130)
+
+traintestind <- createDataPartition(Task1data$Private, p=0.70, list = FALSE)
+
+traindata <- Task1data[traintestind,] #assigning 70% of data to train
+testdata <- Task1data[-traintestind,] #assigning remaining 30% of data to test
+
+#nrow(traindata) + nrow(testdata)
+
+
+
+```
+
+<center>
+  <B> <font size=4, color="A11515">Observation:</font> 
+  </B>
+</center><BR>
+<P>In this task, I would be splitting the College dataset into two parts: a training set(70%) and a test set(30%). The training set is used to train the model, while the test set is used to evaluate the model's performance.<BR>
+The main reason for doing a train and test split is to evaluate the performance of a machine learning model. A model that performs well on the training set is not necessarily a good indicator of how well the model will perform on unseen data.<BR>
+<P>When a model is trained and tested on the same data, it can result in overfitting, where the model performs well on the training data but poorly on new unseen data. By splitting the data into a training set and a test set, we can evaluate the model's performance on unseen data and get a better idea of how well the model is likely to perform on new, unseen data.<BR>
+<P>Another reason for doing a train and test split is to be able to compare the performance of different models. By training and testing several models on the same data, we can compare their performance and select the best model.<BR>
+<P>In addition, train and test split help in finding the optimal parameters of the model by tuning the hyperparameters using the train set and test it on test set.<BR>
+<P>Once the dataset has been split into training and test sets, the model can be trained on the training set using a function such as lm()-Linear Regression or glm()- Logistic Regression. Then, the model's performance can be evaluated on the test set using function ConfusionMatrix().<BR>
+<P>In summary, train and test split is an important step in the machine learning process as it allows us to evaluate the performance of a model, compare the performance of different models, and ensure that the model is generalizing well to new, unseen data.<BR>
+
+
+<center>
+  <B> <font size=4, color="A11515">Task 3:</font> 
+  </B>
+</center>
+
+```{r Task 3, message=FALSE, warning=FALSE}
+
+allglm = glm(Private ~ ., data = traindata, family = binomial(link = "logit"))
+
+summary(allglm)
+
+
+task3fit1 = glm(Private ~ F.Undergrad + perc.alumni + Outstate, data = traindata, family = binomial(link = "logit"))
+
+task3fit2 = glm(Private ~ Personal + Enroll, data = traindata, family = binomial(link = "logit"))
+
+#summary(task3fit1)
+#summary(task3fit2)
+
+exp(coef(task3fit1)) %>%
+  kable(caption = "<center>Table 7: Coefficinent of Model</center>",
+        col.names = "Coefficient of Model",
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "50%") %>%
+   footnote(general = "Test 1: Private ~ F.Undergrad + perc.alumni + Outstate",
+           general_title = "Test fit: ")
+
+
+
+```
+
+<center>
+  <B> <font size=4, color="A11515">Observation:</font> 
+  </B>
+</center><BR>
+<P>GLMs are a type of statistical model that extend the generalized linear model framework to allow for response variables that have error distributions other than a normal distribution. glm() allows for fitting a wide range of models, including linear regression, logistic regression, Poisson regression, and others. It can handle both continuous and categorical predictor variables, and can include interactions and non-linear terms.<BR>
+<P>In this task, I ran glm() on entire dataset considering Private is dependent variable. As the model is fitted, summary() is used to extract information and make inferences. Summary() shows the Apps, Accept, Full time Undergrad Students, and Outstate are significant. As these codes only indicate if the coefficients are statistically significant or not, but they don't give information about the effect size, or the magnitude of the coefficient, which is important in determining the practical significance of the results.<BR>
+I would model F.Undergrad, Percentage of Alumni who donate, and Outstate and Personal expenditure and enrolled new students to run on train and test data. Out of these two models, F.Undergrad, Percentage of Alumni who donate, and Outstate is best fit and selected for further analysis.<BR>
+
+<center>
+  <B> <font size=4, color="A11515">Task 4:</font> 
+  </B>
+</center>
+
+```{r Task 4, message=FALSE, warning=FALSE}
+
+Probtrain = predict(task3fit1, newdata = traindata, type = "response")
+predclassmin <- as.factor(ifelse(Probtrain >= 0.5, "Yes", "No"))
+
+head(Probtrain,10) %>%
+  kable(caption = "<center>Table 8: Predicated Probability of Train Data </center>",
+    col.names = "Probabilities",
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "50%") %>%
+   footnote(general = "Predict model ran on train data shows first 10 observations",
+           general_title = "Probability: ")
+
+confusionMatrix(predclassmin, traindata$Private, positive = "Yes")
+
+```
+
+<center>
+  <B> <font size=4, color="A11515">Observation:</font> 
+  </B>
+</center><BR>
+<P>Predict() function is used to make predictions for new data using a fitted model. The predictions can be used for a variety of purposes, such as:<BR>
+<B>Model evaluation</B>: By comparing the predicted values to the actual values for a set of new data, we can evaluate the performance of the model and determine how well it is able to generalize to new data.<BR>
+<B>Model comparison</B>: By comparing the predicted values from different models, we can determine which model is the best fit for the data.<BR>
+<B>Forecasting</B>: We can use the predict function to forecast future values of a response variable based on the model that has been fit to historical data.<BR>
+<B>Understanding model behavior</B>: The predict function can also be used to understand how the model behaves for different input values. This can be useful for understanding the relationship between predictor variables and the response variable.<BR>
+<B>Decision making</B>: In some cases, the predictions can be used to make decisions. For example, a model that predicts the probability of universities churn can be used to identify Public or Private and take action to retain them.
+Overall, predict function is a key function in data modeling as it allows to test the model on unseen data and evaluate its performance.<BR>
+<P>Furthermore, as.factor() is used on the output of the predict() to change probability more than 0.5 to Yes and others to No. This arrangement would we used to make data ConfusionMatrix() compatible.<BR>
+<P>ConfusionMatrix() is used to create a confusion matrix, which is a table that is used to evaluate the performance of a classification model. The matrix is created by comparing the predicted class labels to the actual class labels for a set of test data.<BR>
+The confusion matrix has <u>four main elements</u>: <B>true positives (TP), false positives (FP), true negatives (TN), and false negatives (FN).</B><BR>
+<P><B>True positives (TP)</B> are the number of observations that are correctly classified as belonging to the positive class. In our train model, it is 380.<BR> 
+<B>False positives (FP)</B> are the number of observations that are incorrectly classified as belonging to the positive class. In our train model, it is 16.<BR>
+<B>True negatives (TN)</B> are the number of observations that are correctly classified as belonging to the negative class. In our train model, it is 130.<BR>
+<B>False negatives (FN)</B> are the number of observations that are incorrectly classified as belonging to the negative class. In our train model, it is 19.<BR>
+<P><center> Type 1 Error: False Positives (FP) <BR>
+Type 2 Error: False Negatives (FN) </center>
+<P>The confusion matrix is useful for understanding the performance of a classification model in terms of precision, recall, accuracy, and specificity.<BR>
+ConfusionMatrix() function can be used with various classification models, such as logistic regression, decision trees, random forests, etc. It can also be used with multiclass classification problems. It is an important step in evaluating the performance of a model and helps in identifying any errors or bias present in the model.<BR>
+<P>In general, false positives and false negatives can have different consequences and it is important to consider the specific context of the analysis when determining which misclassification is more damaging. As the goal of the analysis is to identify schools with Full time undergrads, percentage of alumni who donate and out-of-state tuition, a false negative (failing to identify a school with high out-of-state tuition) might be more damaging than a false positive (identifying a school as having high out-of-state tuition when it does not). On the other hand, if the goal of the analysis is to identify schools with low out-of-state tuition per student, a false positive might be more damaging.<BR>
+<P>By counting the number of observations in each of these cells, we can calculate various metrics such as accuracy, precision, recall, and F1-score.<BR>
+<center>
+  Accuracy = (TP+TN)/(TP+TN+FP+FN)<BR>
+  Precision = TP/(TP+FP)<BR>
+  Recall = TP/(TP+FN)<BR>
+  F1-score = 2PrecisionRecall/(Precision+Recall)<BR><P>
+</center>
+
+<center>
+  <B> <font size=4, color="A11515">Task 5:Interpreting ConfusionMatrix()</font>   </B>
+</center>
+
+```{r Task 5, message=FALSE, warning=FALSE}
+#Report and interpret metrics for Accuracy, Precision, Recall, and Specificity.
+
+cmt5 = confusionMatrix(predclassmin, traindata$Private, positive = "Yes")
+cmt5$byClass
+cmt5$overall
+
+```
+
+<center>
+  <B> <font size=4, color="A11515">Observation:</font> 
+  </B>
+</center><BR>
+<P><B>True positives (TP)</B> are the number of observations that are correctly classified as belonging to the positive class. In our train model, it is 380.<BR> 
+<B>False positives (FP)</B> are the number of observations that are incorrectly classified as belonging to the positive class. In our train model, it is 16.<BR>
+<B>True negatives (TN)</B> are the number of observations that are correctly classified as belonging to the negative class. In our train model, it is 130.<BR>
+<B>False negatives (FN)</B> are the number of observations that are incorrectly classified as belonging to the negative class. In our train model, it is 19.<BR>
+<P><center> Type 1 Error: False Positives (FP) <BR>
+Type 2 Error: False Negatives (FN) </center>
+<P>Accuracy of the model is 93%. Sensitivity (Recall) is almost 96% which means 96 universities out of 100 are predicted correctly. Precision is 95% which means 95 universities are predicted correctly. Specificity determines the proportion of actual negatives that are correctly identified. In our model, specificity is 87% which means 87 universities are labeled private and 13 are labelled incorrectly as public. 
+<center>
+  <B> <font size=4, color="A11515">Task 6:</font> 
+  </B>
+</center>
+
+```{r Task 6, message=FALSE, warning=FALSE}
+
+#Confusion Matrix for test data#####
+
+
+Probtest = predict(task3fit1, newdata = testdata, type = "response")
+predclassmintest <- as.factor(ifelse(Probtest >= 0.5, "Yes", "No"))
+
+head(Probtest,10) %>%
+  kable(caption = "<center>Table 9: Predicated Probabilites of Test Data</center>",
+        col.names = "Probabilities for Test data",
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "50%") %>%
+   footnote(general = "Predict model ran on test data shows first 10 observations",
+           general_title = "Probability: ")
+
+cm = confusionMatrix(predclassmintest, testdata$Private, positive = "Yes") 
+cm
+#precision <- cm$byClass['Pos Pred Value']    
+#recall <- cm$byClass['Sensitivity']
+
+#f_measure <- 2 * ((precision * recall) / (precision + recall))
+
+fval = cm$byClass["F1"]
+
+error = data.frame("error" = c(1-fval))
+error = error$error
+
+round(error,4) %>%
+  kable(caption = "<center>Table 10: Error Probability in the model</center>",
+    col.names = "Error Probability",
+        align = "c") %>%
+  kable_styling(bootstrap_options = c("bordered",
+                                      "responsive",
+                                      "hover"),
+                font_size = 11) %>%
+ scroll_box(width = "100%", height = "50%") %>%
+   footnote(general = "Private ~ F.Undergrad + perc.alumni + Outstate",
+           general_title = "Error Probability: ")
+
+```
+
+<center>
+  <B> <font size=4, color="A11515">Observation:</font> 
+  </B>
+</center><BR>
+<P><B>True positives (TP)</B> are the number of observations that are correctly classified as belonging to the positive class. In our train model, it is 160.<BR> 
+<B>False positives (FP)</B> are the number of observations that are incorrectly classified as belonging to the positive class. In our train model, it is 9.<BR>
+<B>True negatives (TN)</B> are the number of observations that are correctly classified as belonging to the negative class. In our train model, it is 58.<BR>
+<B>False negatives (FN)</B> are the number of observations that are incorrectly classified as belonging to the negative class. In our train model, it is 5.<BR>
+<P><center> Type 1 Error: False Positives (FP) <BR>
+Type 2 Error: False Negatives (FN) </center><BR>
+<P>Accuracy of the model is 94%. Sensitivity (Recall) is almost 94% which means 94 universities out of 100 are predicted correctly as Private. Precision is 97% which means 97 universities are predicted correctly as Private. Specificity determines the proportion of actual negatives that are correctly identified. In our model, specificity is 92% which means 92 universities are labeled private and 18 are labelled incorrectly as public.<BR>
+The Error Probability of the model on test dataset is 4% means there are 6 univertsities out of 100 are incorrectly labelled public. 
+
+<center>
+  <B> <font size=4, color="A11515">Task 7:</font> 
+  </B>
+</center>
+
+```{r Task 7, message=FALSE, warning=FALSE}
+#Receiver Operator Characteristic Curve######
+
+rocdata = roc(testdata$Private, Probtest)
+
+ggroc(rocdata, colour = 'steelblue', size = 2) +
+  ggtitle("ROC Chart")+
+  xlab(" Specificity: FP Rate")+
+  ylab("Sensitivity: TP Rate")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+```
+
+<center>
+  <B> <font size=4, color="A11515">Observation:</font> 
+  </B>
+</center><BR>
+<P>The roc() function is used to create a receiver operating characteristic (ROC) curve, which is a graphical representation of the performance of a binary classifier system as the discrimination threshold is varied. The ROC curve is created by plotting the true positive rate (sensitivity) against the false positive rate (1-specificity) at various threshold settings. The area under the ROC curve (AUC) is a measure of the overall performance of the classifier, with a value of 1 indicating perfect classification and a value of 0.5 indicating a classifier that performs no better than chance.<BR>
+
+
+<center><B> <font size=4, color="A11515">Task 8:</font> </B></center>
+
+```{r Task 8, message=FALSE, warning=FALSE}
+#Area Under Curve####
+
+auc(rocdata)
+
+
+```
+
+<center><B> <font size=4, color="A11515">Observation:</font> </B></center>
+<BR><P>The ROC chart shows the model is well suited to make predictions accurately as AOC that is area under the curve is 97%. <BR>
+<P>
+
+<center><B> <font size=4, color="A11515">Conclusion:</font> </B></center>
+<BR>
+<P>In this project, we have tested glm() to test logistic regression on Categorical variable Private. Private have Yes,No values for university category. The glm() provided the best suited model by running on the dataset and we have selected three independent variable to test and train the dataset to predict private and public university based upon the enrolled Full time undergrads, Percentage of Alumni who donate and Out-of-State tuition fee. The model shows overall 94% accuracy and error labelling private as public is nearly 4%. 
+
+<center><B> <font size=4, color="A11515">Reference:</font> </B></center>
+
+<BR> 
+Bluman, A. (2014). <I>Elementary statistics: A step by step approach</I>.
+McGraw-Hill Education.<BR> 
+Gero, E. (2023). <I>ALY6015_Module3_Logistic_Regression</I>[Lecture recording]. Canvas@Northeastern University.https://canvas.northeastern.edu/ <BR> 
+Kabacoff, R. (2015). <I>R in Action</I>. Manning Publications Co. <BR> 
+Zach. (2020). <I>How to Calculate AUC (Area Under Curve) in R</I>. Statology.
+https://www.statology.org/auc-in-r/ <BR>
